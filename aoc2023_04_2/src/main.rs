@@ -10,8 +10,10 @@ fn main() -> Result<(), Error> {
 
     for line in stdin().lines() {
         total_cards += 1;
+        let mut this_cards = 1;
         if let Some(this_copies) = copies.pop_front() {
             total_cards += this_copies;
+            this_cards += this_copies;
         }
 
         let line = line?;
@@ -34,9 +36,9 @@ fn main() -> Result<(), Error> {
         }
         for i in 0..matches {
             if i < copies.len() {
-                copies[i] += 1;
+                copies[i] += this_cards;
             } else {
-                copies.push_back(1);
+                copies.push_back(this_cards);
             }
         }
     }
