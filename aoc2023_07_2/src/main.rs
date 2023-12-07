@@ -55,6 +55,7 @@ fn best_wild_combo(cards: &[u8]) -> u8 {
 
 fn convert_card(text: u8) -> u8 {
     match text {
+        b'J' => 1,
         b'2' => 2,
         b'3' => 3,
         b'4' => 4,
@@ -64,7 +65,6 @@ fn convert_card(text: u8) -> u8 {
         b'8' => 8,
         b'9' => 9,
         b'T' => 10,
-        b'J' => 11,
         b'Q' => 12,
         b'K' => 13,
         b'A' => 14,
