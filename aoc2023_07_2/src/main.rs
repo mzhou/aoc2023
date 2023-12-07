@@ -34,7 +34,7 @@ fn best_wild_combo(cards: &[u8]) -> u8 {
             match combo {
                 3 => 6, // 3 of a kind => 5 of a kind
                 1 => 5, // one pair => 4 of a kind
-                0 => 2, // high card => two pair
+                0 => 3, // high card => 3 of a kind
                 _ => panic!("impossible 2 wildcard"),
             }
         }
