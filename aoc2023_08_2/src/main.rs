@@ -1,12 +1,46 @@
-use std::collections::HashMap;
+use std::cmp::min;
+use std::collections::{HashMap, HashSet};
 use std::io::stdin;
 
 use anyhow::{Context, Error};
+use itertools::Itertools;
+use num::integer::lcm;
 
-fn is_all_done(poses: &[&str]) -> bool {
-    poses
-        .iter()
-        .fold(true, |ret, value| ret && value.ends_with('Z'))
+fn list_solutions(
+    nodes: &HashMap<String, (String, String)>,
+    instructions: &[u8],
+    start_pos: &str,
+) -> Result<Vec<usize>, Error> {
+    eprintln!("list_solutions({})", start_pos);
+    let mut pos = start_pos;
+    let mut seen = HashSet::<(&str, usize)>::new();
+    let mut solutions = Vec::<usize>::new();
+    let mut steps = 0;
+    'outer: loop {
+        for i in 0..instructions.len() {
+            let instruction = instructions[i];
+
+            if !seen.insert((pos, i)) {
+                eprintln!("cycle at {} {}", pos, i);
+                break 'outer;
+            }
+
+            let node = nodes.get(pos).context("invalid node")?;
+            pos = match instruction {
+                b'L' => node.0.as_str(),
+                b'R' => node.1.as_str(),
+                _ => panic!("invalid instruction"),
+            };
+            eprintln!("now at {}", pos);
+            steps += 1;
+            if pos.ends_with('Z') {
+                eprintln!("solution at {}, {} steps", pos, steps);
+                solutions.push(steps);
+            }
+        }
+    }
+    eprintln!("list_solutions({}) end", start_pos);
+    Ok(solutions)
 }
 
 fn main() -> Result<(), Error> {
@@ -35,33 +69,36 @@ fn main() -> Result<(), Error> {
         nodes.insert(name, (left, right));
     }
 
-    let mut steps = 0;
-
-    let mut poses = nodes
+    let poses = nodes
         .keys()
         .filter(|k| k.ends_with('A'))
-        .map(|k| k.as_str())
-        .collect::<Vec<_>>();
+        .map(|k| k.as_str());
 
-    while !is_all_done(&poses) {
-        for instruction in instructions.iter() {
-            let instruction = *instruction;
-            if is_all_done(&poses) {
-                break;
-            }
-            for pos in poses.iter_mut() {
-                let node = nodes.get(*pos).context("invalid node")?;
-                *pos = match instruction {
-                    b'L' => node.0.as_str(),
-                    b'R' => node.1.as_str(),
-                    _ => panic!("invalid instruction"),
-                };
-            }
-            steps += 1;
-        }
+    let solutionss = poses
+        .map(|pos| list_solutions(&nodes, &instructions, pos))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    eprintln!("solutionss len {}", solutionss.len());
+    for solutions in solutionss.iter() {
+        eprintln!("solutions len {}", solutions.len());
     }
 
-    println!("{}", steps);
+    let mut best = usize::max_value();
+
+    for solutions in solutionss
+        .iter()
+        .map(|solutions| solutions.iter())
+        .multi_cartesian_product()
+    {
+        eprintln!("loop");
+        let mut lcm_value = 1;
+        for solution in solutions {
+            lcm_value = lcm(lcm_value, *solution);
+        }
+        best = min(best, lcm_value);
+    }
+
+    println!("{}", best);
 
     Ok(())
 }
