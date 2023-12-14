@@ -82,6 +82,17 @@ fn main() -> Result<(), Error> {
         }
     }
 
+    let expanded_xs = expand_xs
+        .iter()
+        .enumerate()
+        .map(|(i, v)| i + v)
+        .collect::<Vec<_>>();
+    let expanded_ys = expand_xs
+        .iter()
+        .enumerate()
+        .map(|(i, v)| i + v)
+        .collect::<Vec<_>>();
+
     let mut sum_distances = 0;
 
     for i in 0..galaxy_poses.len() {
@@ -93,12 +104,12 @@ fn main() -> Result<(), Error> {
                 "{} ({}, {}) {} ({}, {}) {}",
                 i, pos_i_x, pos_i_y, j, pos_j_x, pos_j_y, distance
             );
-            for expand_x in expand_xs.iter() {
+            for expand_x in expanded_xs.iter() {
                 if between(pos_i_x, pos_j_x, *expand_x) {
                     distance += 999998;
                 }
             }
-            for expand_y in expand_ys.iter() {
+            for expand_y in expanded_ys.iter() {
                 if between(pos_i_y, pos_j_y, *expand_y) {
                     distance += 999998;
                 }
