@@ -245,5 +245,21 @@ fn main() -> Result<(), Error> {
         );
     }
 
+    // count tiles that are fully surrounded by . gaps
+    let mut surrounded = 0;
+    for pos in 0..tiles.len() {
+        let x = pos % width;
+        let y = pos / width;
+        if gaps[y * gaps_width + x] == b'.'
+            && gaps[y * gaps_width + x + 1] == b'.'
+            && gaps[(y + 1) * gaps_width + x] == b'.'
+            && gaps[(y + 1) * gaps_width + x + 1] == b'.'
+        {
+            surrounded += 1;
+        }
+    }
+
+    println!("{}", surrounded);
+
     Ok(())
 }
