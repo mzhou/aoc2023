@@ -2,6 +2,73 @@ use std::io::stdin;
 
 use anyhow::{Context, Error};
 
+fn flood_fill(tiles: &[u8], width: usize, gaps: &mut [u8]) {
+    flood_fill_recursive(tiles, width, gaps, 0);
+}
+
+fn flood_fill_recursive(tiles: &[u8], width: usize, gaps: &mut [u8], pos: usize) {
+    eprintln!("flood_fill_recursive({})", pos);
+    if gaps[pos] != b'.' {
+        return;
+    }
+    gaps[pos] = b'O';
+    let gaps_width = width + 1;
+
+    // special cases for when we're on the edge, no pipe will ever block us from moving to another
+    // edge gap
+
+    // left/right edge
+    if pos % gaps_width == 0 || pos % gaps_width == gaps_width - 1 {
+        if pos / gaps_width > gaps_width {
+            eprintln!("flood_fill_recursive({}) edge up", pos);
+            flood_fill_recursive(tiles, width, gaps, pos - gaps_width);
+        }
+        if pos < gaps.len() - gaps_width {
+            eprintln!("flood_fill_recursive({}) edge down", pos);
+            flood_fill_recursive(tiles, width, gaps, pos + gaps_width);
+        }
+    }
+
+    // left, will be blocked if the pipe we're on the top right corner of has a vertical at the top
+    if pos % gaps_width != 0
+        && pos < gaps.len() - gaps_width
+        && !b"|LJ".contains(&tiles[(pos / gaps_width) * width + pos % gaps_width - 1])
+    {
+        eprintln!("flood_fill_recursive({}) left", pos);
+        flood_fill_recursive(tiles, width, gaps, pos - 1);
+    }
+
+    // up, anything with horizontal at the left will block (tile we're on the bottom left
+    // corner of)
+    if pos >= gaps_width
+        && pos % gaps_width < gaps_width - 1
+        && !b"-J7".contains(&tiles[(pos / gaps_width - 1) * width + pos % gaps_width])
+    {
+        eprintln!("flood_fill_recursive({}) up", pos);
+        flood_fill_recursive(tiles, width, gaps, pos - gaps_width);
+    }
+
+    // right, anything with vertical at the top will block (tile we're on the top left
+    // corner of)
+    if pos % gaps_width < gaps_width - 1
+        && pos < gaps.len() - gaps_width
+        && !b"|LJ".contains(&tiles[(pos / gaps_width) * width + pos % gaps_width])
+    {
+        eprintln!("flood_fill_recursive({}) right", pos);
+        flood_fill_recursive(tiles, width, gaps, pos + 1);
+    }
+
+    // down, anything above with horizontal at the left will block (tile we're on the top left
+    // corner of)
+    if pos < gaps.len() - gaps_width
+        && pos % gaps_width < gaps_width - 1
+        && !b"-J7".contains(&tiles[(pos / gaps_width) * width + pos % gaps_width])
+    {
+        eprintln!("flood_fill_recursive({}) down", pos);
+        flood_fill_recursive(tiles, width, gaps, pos + gaps_width);
+    }
+}
+
 fn main() -> Result<(), Error> {
     let mut tiles = Vec::<u8>::new();
     let mut width = 0;
@@ -159,14 +226,24 @@ fn main() -> Result<(), Error> {
         );
     }
 
-    // make a map of "gaps" between the pipes. gap (0, 0) is above and left of pipe tile (0, 0)
-    // and (width, height) is below and right of pipe tile (width - 1, height - 1)
+    // make a map of "gaps" between the pipes. gap (0, 0) is on the top left corner of pipe (0, 0)
+    // and (width, height) is on the bottom right corner of pipe tile (width - 1, height - 1)
     // notation (x, y) with pos = (width + 1) * y + x
 
     let gaps_width = width + 1;
     let gaps_height = height + 1;
 
     let mut gaps = vec![b'.'; gaps_width * gaps_height];
+
+    // flood fill from (0, 0)
+    flood_fill(&loop_tiles, width, &mut gaps);
+
+    for y in 0..gaps_height {
+        eprintln!(
+            "{}",
+            String::from_utf8_lossy(&gaps[y * gaps_width..(y + 1) * gaps_width])
+        );
+    }
 
     Ok(())
 }
