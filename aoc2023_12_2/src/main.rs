@@ -17,6 +17,14 @@ fn count_combos_recursive(
     active_group: Option<usize>,
     groups: &[usize],
 ) -> usize {
+    eprintln!(
+        "count_combos_recursive({}, {}, {:?}, {:?})",
+        first.map(|f| f as char).unwrap_or('N'),
+        String::from_utf8_lossy(current),
+        active_group,
+        groups
+    );
+
     let remaining_damaged =
         active_group.unwrap_or_default() + groups.iter().map(|g| *g as usize).sum::<usize>();
 
@@ -63,7 +71,6 @@ fn count_combos_recursive(
                     groups,
                 );
             }
-            _ => panic!("invalid tile"),
         },
         b'#' => match active_group {
             None => {
@@ -92,12 +99,19 @@ fn count_combos_recursive(
                     groups,
                 );
             }
-            _ => panic!("invalid tile"),
         },
         b'?' => {
-            // sum up both alternatives for first
-            return count_combos_recursive(Some(b'.'), current, active_group, groups)
-                + count_combos_recursive(Some(b'#'), current, active_group, groups);
+            // sum up both alternatives for first, with some pruning
+            let mut count = 0;
+            if max_damaged(current) >= remaining_damaged {
+                // don't bother trying . if we can't satisfy the groups even making
+                // all remaining ones #
+                count += count_combos_recursive(Some(b'.'), current, active_group, groups);
+            }
+            if remaining_damaged != 0 {
+                count += count_combos_recursive(Some(b'#'), current, active_group, groups);
+            }
+            return count;
         }
         _ => panic!("invalid tile"),
     }
@@ -109,44 +123,6 @@ fn exclude_first<T>(s: &[T]) -> &[T] {
     } else {
         &s[1..]
     }
-}
-
-fn is_combo_valid(current: &[u8], groups: &[usize]) -> bool {
-    /*
-    eprintln!(
-        "is_combo_valid({}, {:?})",
-        String::from_utf8_lossy(current),
-        groups
-    );
-    */
-
-    let mut run_length = 0;
-    let mut group_i = 0;
-    for (i, b) in current.iter().enumerate() {
-        if *b == b'#' {
-            run_length += 1;
-            continue;
-        }
-        if run_length != 0 {
-            if group_i >= groups.len() || run_length != groups[group_i] {
-                //eprintln!("{} {}", i, false);
-                return false;
-            }
-            run_length = 0;
-            group_i += 1;
-        }
-    }
-    if run_length != 0 {
-        if group_i >= groups.len() || run_length != groups[group_i] {
-            //eprintln!("end {}", false);
-            return false;
-        }
-        run_length = 0;
-        group_i += 1;
-    }
-    let ret = group_i == groups.len();
-    //eprintln!("length {}", ret);
-    ret
 }
 
 fn main() -> Result<(), Error> {
@@ -165,6 +141,12 @@ fn main() -> Result<(), Error> {
 
         let unfolded_status = unfold_status(status);
         let unfolded_groups = unfold_groups(&groups);
+
+        eprintln!(
+            "processing {} {:?}",
+            String::from_utf8_lossy(&unfolded_status),
+            unfolded_groups
+        );
 
         let valid_combo_count = count_combos(&unfolded_status, &unfolded_groups);
 
@@ -213,6 +195,13 @@ fn main() -> Result<(), Error> {
     println!("{}", total_combo_count);
 
     Ok(())
+}
+
+fn max_damaged(statuses: &[u8]) -> usize {
+    statuses
+        .iter()
+        .filter(|s| **s == b'#' || **s == b'?')
+        .count()
 }
 
 fn unfold_groups(groups: &[usize]) -> Vec<usize> {
