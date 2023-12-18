@@ -2,6 +2,115 @@ use std::io::stdin;
 
 use anyhow::{Context, Error};
 
+fn count_combos(current: &[u8], groups: &[usize]) -> usize {
+    count_combos_recursive(
+        current.first().cloned(),
+        exclude_first(current),
+        None,
+        groups,
+    )
+}
+
+fn count_combos_recursive(
+    first: Option<u8>,
+    current: &[u8],
+    active_group: Option<usize>,
+    groups: &[usize],
+) -> usize {
+    let remaining_damaged =
+        active_group.unwrap_or_default() + groups.iter().map(|g| *g as usize).sum::<usize>();
+
+    let first = match first {
+        None => {
+            //eprintln!(
+            //    "first None active_group {:?} groups {:?}",
+            //    active_group, remaining_damaged
+            //);
+            return if remaining_damaged == 0 { 1 } else { 0 };
+        }
+        Some(f) => f,
+    };
+
+    match first {
+        b'.' => match active_group {
+            None => {
+                // just advance current
+                return count_combos_recursive(
+                    current.first().cloned(),
+                    exclude_first(current),
+                    active_group,
+                    groups,
+                );
+            }
+            Some(g) => {
+                // ending a group
+                if g != 0 {
+                    // can't if group isn't exhausted
+                    //eprintln!(
+                    //    "group ended first {} current {} active_group {} groups {:?}",
+                    //    first as char,
+                    //    String::from_utf8_lossy(current),
+                    //    g,
+                    //    groups
+                    //);
+                    return 0;
+                }
+                // advance current, end group
+                return count_combos_recursive(
+                    current.first().cloned(),
+                    exclude_first(current),
+                    None,
+                    groups,
+                );
+            }
+            _ => panic!("invalid tile"),
+        },
+        b'#' => match active_group {
+            None => {
+                // start group
+                if groups.is_empty() {
+                    return 0;
+                }
+                return count_combos_recursive(
+                    current.first().cloned(),
+                    exclude_first(current),
+                    Some(groups[0] - 1),
+                    exclude_first(groups),
+                );
+            }
+            Some(g) => {
+                // continue existing group
+                if g == 0 {
+                    // can't if current group has run out
+                    return 0;
+                }
+                // reduce current group by 1
+                return count_combos_recursive(
+                    current.first().cloned(),
+                    exclude_first(current),
+                    Some(g - 1),
+                    groups,
+                );
+            }
+            _ => panic!("invalid tile"),
+        },
+        b'?' => {
+            // sum up both alternatives for first
+            return count_combos_recursive(Some(b'.'), current, active_group, groups)
+                + count_combos_recursive(Some(b'#'), current, active_group, groups);
+        }
+        _ => panic!("invalid tile"),
+    }
+}
+
+fn exclude_first<T>(s: &[T]) -> &[T] {
+    if s.is_empty() {
+        &[]
+    } else {
+        &s[1..]
+    }
+}
+
 fn is_combo_valid(current: &[u8], groups: &[usize]) -> bool {
     /*
     eprintln!(
@@ -57,6 +166,9 @@ fn main() -> Result<(), Error> {
         let unfolded_status = unfold_status(status);
         let unfolded_groups = unfold_groups(&groups);
 
+        let valid_combo_count = count_combos(&unfolded_status, &unfolded_groups);
+
+        /*
         let mut unknown_poses = Vec::<usize>::new();
         for (i, c) in unfolded_status.iter().enumerate() {
             if *c == b'?' {
@@ -93,6 +205,7 @@ fn main() -> Result<(), Error> {
                 break;
             }
         }
+        */
 
         total_combo_count += valid_combo_count;
     }
