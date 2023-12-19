@@ -28,8 +28,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if width != 0 {
-        let answer = process_pattern(&pattern, width);
-        total += answer;
+        for smudge_pos in 0..pattern.len() {
+            pattern[smudge_pos] = if pattern[smudge_pos] == b'.' {
+                b'#'
+            } else {
+                b'.'
+            };
+            let answer = process_pattern(&pattern, width);
+            if answer != 0 {
+                total += answer;
+                break;
+            }
+        }
 
         pattern.clear();
         width = 0;
@@ -51,7 +61,7 @@ fn process_pattern(pattern: &[u8], width: usize) -> usize {
             return col + 1;
         }
     }
-    panic!("pattern without valid reflection");
+    0
 }
 
 fn test_col(pattern: &[u8], width: usize, col: usize) -> bool {
