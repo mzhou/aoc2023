@@ -13,8 +13,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         let bytes = line.as_bytes();
 
         if bytes.is_empty() {
-            let answer = process_pattern(&pattern, width);
-            total += answer;
+            let orig_answer = process_pattern(&pattern, width);
+            for smudge_pos in 0..pattern.len() {
+                let orig = pattern[smudge_pos];
+                pattern[smudge_pos] = if orig == b'.' { b'#' } else { b'.' };
+                let answer = process_pattern(&pattern, width);
+                if answer != 0 && answer != orig_answer {
+                    total += answer;
+                    break;
+                }
+                pattern[smudge_pos] = orig;
+            }
 
             pattern.clear();
             width = 0;
@@ -28,17 +37,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if width != 0 {
+        let orig_answer = process_pattern(&pattern, width);
         for smudge_pos in 0..pattern.len() {
-            pattern[smudge_pos] = if pattern[smudge_pos] == b'.' {
-                b'#'
-            } else {
-                b'.'
-            };
+            let orig = pattern[smudge_pos];
+            pattern[smudge_pos] = if orig == b'.' { b'#' } else { b'.' };
             let answer = process_pattern(&pattern, width);
-            if answer != 0 {
+            if answer != 0 && answer != orig_answer {
                 total += answer;
                 break;
             }
+            pattern[smudge_pos] = orig;
         }
 
         pattern.clear();
