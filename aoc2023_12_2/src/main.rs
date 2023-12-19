@@ -1,11 +1,24 @@
+use std::collections::HashMap;
 use std::io::stdin;
 
 use anyhow::{Context, Error};
 
-static DEBUG: bool = true;
+static DEBUG: bool = false;
+
+type Cache = HashMap<State, usize>;
+
+#[derive(Eq, Hash, PartialEq)]
+struct State {
+    first: Option<u8>,
+    current: Vec<u8>,
+    active_group: Option<usize>,
+    groups: Vec<usize>,
+}
 
 fn count_combos(current: &[u8], groups: &[usize]) -> usize {
+    let mut cache = Cache::new();
     count_combos_recursive(
+        &mut cache,
         0,
         current.first().cloned(),
         exclude_first(current),
@@ -15,6 +28,7 @@ fn count_combos(current: &[u8], groups: &[usize]) -> usize {
 }
 
 fn count_combos_recursive(
+    cache: &mut Cache,
     depth: usize,
     first: Option<u8>,
     current: &[u8],
@@ -34,6 +48,17 @@ fn count_combos_recursive(
         );
     }
 
+    let state = State {
+        first,
+        current: current.iter().cloned().collect(),
+        active_group,
+        groups: groups.iter().cloned().collect(),
+    };
+
+    if let Some(ret) = cache.get(&state) {
+        return *ret;
+    }
+
     let remaining_damaged =
         active_group.unwrap_or_default() + groups.iter().map(|g| *g as usize).sum::<usize>();
 
@@ -47,6 +72,7 @@ fn count_combos_recursive(
             if DEBUG {
                 eprintln!("{} return {}", depth, ret);
             }
+            cache.insert(state, ret);
             return ret;
         }
         Some(f) => f,
@@ -68,13 +94,16 @@ fn count_combos_recursive(
         b'.' => match active_group {
             None => {
                 // just advance current
-                return count_combos_recursive(
+                let ret = count_combos_recursive(
+                    cache,
                     depth + 1,
                     current.first().cloned(),
                     exclude_first(current),
                     active_group,
                     groups,
                 );
+                cache.insert(state, ret);
+                return ret;
             }
             Some(g) => {
                 // ending a group
@@ -87,46 +116,61 @@ fn count_combos_recursive(
                     //    g,
                     //    groups
                     //);
-                    return 0;
+                    let ret = 0;
+                    cache.insert(state, ret);
+                    return ret;
                 }
                 // advance current, end group
-                return count_combos_recursive(
+                let ret = count_combos_recursive(
+                    cache,
                     depth + 1,
                     current.first().cloned(),
                     exclude_first(current),
                     None,
                     groups,
                 );
+                cache.insert(state, ret);
+                return ret;
             }
         },
         b'#' => match active_group {
             None => {
                 // start group
                 if groups.is_empty() {
-                    return 0;
+                    let ret = 0;
+                    cache.insert(state, ret);
+                    return ret;
                 }
-                return count_combos_recursive(
+                let ret = count_combos_recursive(
+                    cache,
                     depth + 1,
                     current.first().cloned(),
                     exclude_first(current),
                     Some(groups[0] - 1),
                     exclude_first(groups),
                 );
+                cache.insert(state, ret);
+                return ret;
             }
             Some(g) => {
                 // continue existing group
                 if g == 0 {
                     // can't if current group has run out
-                    return 0;
+                    let ret = 0;
+                    cache.insert(state, ret);
+                    return ret;
                 }
                 // reduce current group by 1
-                return count_combos_recursive(
+                let ret = count_combos_recursive(
+                    cache,
                     depth + 1,
                     current.first().cloned(),
                     exclude_first(current),
                     Some(g - 1),
                     groups,
                 );
+                cache.insert(state, ret);
+                return ret;
             }
         },
         b'?' => {
@@ -137,13 +181,26 @@ fn count_combos_recursive(
             {
                 // don't bother trying . if we can't satisfy the groups even making
                 // all remaining ones #
-                count +=
-                    count_combos_recursive(depth + 1, Some(b'.'), current, active_group, groups);
+                count += count_combos_recursive(
+                    cache,
+                    depth + 1,
+                    Some(b'.'),
+                    current,
+                    active_group,
+                    groups,
+                );
             }
             if remaining_damaged != 0 {
-                count +=
-                    count_combos_recursive(depth + 1, Some(b'#'), current, active_group, groups);
+                count += count_combos_recursive(
+                    cache,
+                    depth + 1,
+                    Some(b'#'),
+                    current,
+                    active_group,
+                    groups,
+                );
             }
+            cache.insert(state, count);
             return count;
         }
         _ => panic!("invalid tile"),
