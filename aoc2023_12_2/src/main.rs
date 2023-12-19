@@ -2,8 +2,11 @@ use std::io::stdin;
 
 use anyhow::{Context, Error};
 
+static DEBUG: bool = true;
+
 fn count_combos(current: &[u8], groups: &[usize]) -> usize {
     count_combos_recursive(
+        0,
         current.first().cloned(),
         exclude_first(current),
         None,
@@ -12,18 +15,24 @@ fn count_combos(current: &[u8], groups: &[usize]) -> usize {
 }
 
 fn count_combos_recursive(
+    depth: usize,
     first: Option<u8>,
     current: &[u8],
     active_group: Option<usize>,
     groups: &[usize],
 ) -> usize {
-    eprintln!(
-        "count_combos_recursive({}, {}, {:?}, {:?})",
-        first.map(|f| f as char).unwrap_or('N'),
-        String::from_utf8_lossy(current),
-        active_group,
-        groups
-    );
+    if DEBUG {
+        eprintln!(
+            "count_combos_recursive({}, {}, {} {}, {:?}, {} {:?})",
+            depth,
+            first.map(|f| f as char).unwrap_or('N'),
+            current.len(),
+            String::from_utf8_lossy(current),
+            active_group,
+            groups.len(),
+            groups
+        );
+    }
 
     let remaining_damaged =
         active_group.unwrap_or_default() + groups.iter().map(|g| *g as usize).sum::<usize>();
@@ -34,16 +43,33 @@ fn count_combos_recursive(
             //    "first None active_group {:?} groups {:?}",
             //    active_group, remaining_damaged
             //);
-            return if remaining_damaged == 0 { 1 } else { 0 };
+            let ret = if remaining_damaged == 0 { 1 } else { 0 };
+            if DEBUG {
+                eprintln!("{} return {}", depth, ret);
+            }
+            return ret;
         }
         Some(f) => f,
     };
+
+    let max_remaining_damaged = max_damaged(current);
+
+    // early exit heuristics
+
+    if max_remaining_damaged + 2 < remaining_damaged {
+        return 0;
+    }
+
+    if remaining_damaged + groups.len() > current.len() + 2 {
+        return 0;
+    }
 
     match first {
         b'.' => match active_group {
             None => {
                 // just advance current
                 return count_combos_recursive(
+                    depth + 1,
                     current.first().cloned(),
                     exclude_first(current),
                     active_group,
@@ -65,6 +91,7 @@ fn count_combos_recursive(
                 }
                 // advance current, end group
                 return count_combos_recursive(
+                    depth + 1,
                     current.first().cloned(),
                     exclude_first(current),
                     None,
@@ -79,6 +106,7 @@ fn count_combos_recursive(
                     return 0;
                 }
                 return count_combos_recursive(
+                    depth + 1,
                     current.first().cloned(),
                     exclude_first(current),
                     Some(groups[0] - 1),
@@ -93,6 +121,7 @@ fn count_combos_recursive(
                 }
                 // reduce current group by 1
                 return count_combos_recursive(
+                    depth + 1,
                     current.first().cloned(),
                     exclude_first(current),
                     Some(g - 1),
@@ -103,13 +132,17 @@ fn count_combos_recursive(
         b'?' => {
             // sum up both alternatives for first, with some pruning
             let mut count = 0;
-            if max_damaged(current) >= remaining_damaged {
+            if max_remaining_damaged >= remaining_damaged
+                && (remaining_damaged + groups.len().saturating_sub(1) <= current.len())
+            {
                 // don't bother trying . if we can't satisfy the groups even making
                 // all remaining ones #
-                count += count_combos_recursive(Some(b'.'), current, active_group, groups);
+                count +=
+                    count_combos_recursive(depth + 1, Some(b'.'), current, active_group, groups);
             }
             if remaining_damaged != 0 {
-                count += count_combos_recursive(Some(b'#'), current, active_group, groups);
+                count +=
+                    count_combos_recursive(depth + 1, Some(b'#'), current, active_group, groups);
             }
             return count;
         }
