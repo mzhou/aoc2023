@@ -13,8 +13,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         let bytes = line.as_bytes();
 
         if bytes.is_empty() {
-            let answer = process_pattern(&pattern, width);
-            total += answer;
+            let orig_answer = process_pattern(&pattern, width, 0);
+            for smudge_pos in 0..pattern.len() {
+                let orig = pattern[smudge_pos];
+                pattern[smudge_pos] = if orig == b'.' { b'#' } else { b'.' };
+                let answer = process_pattern(&pattern, width, orig_answer);
+                if answer != 0 && answer != orig_answer {
+                    total += answer;
+                    break;
+                }
+                pattern[smudge_pos] = orig;
+            }
 
             pattern.clear();
             width = 0;
@@ -28,8 +37,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if width != 0 {
-        let answer = process_pattern(&pattern, width);
-        total += answer;
+        let orig_answer = process_pattern(&pattern, width, 0);
+        for smudge_pos in 0..pattern.len() {
+            let orig = pattern[smudge_pos];
+            pattern[smudge_pos] = if orig == b'.' { b'#' } else { b'.' };
+            let answer = process_pattern(&pattern, width, orig_answer);
+            if answer != 0 && answer != orig_answer {
+                total += answer;
+                break;
+            }
+            pattern[smudge_pos] = orig;
+        }
 
         pattern.clear();
         width = 0;
@@ -40,18 +58,24 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn process_pattern(pattern: &[u8], width: usize) -> usize {
+fn process_pattern(pattern: &[u8], width: usize, exclude: usize) -> usize {
     for row in 0..pattern.len() / width - 1 {
         if test_row(pattern, width, row) {
-            return 100 * (row + 1);
+            let ret = 100 * (row + 1);
+            if ret != exclude {
+                return ret;
+            }
         }
     }
     for col in 0..width - 1 {
         if test_col(pattern, width, col) {
-            return col + 1;
+            let ret = col + 1;
+            if ret != exclude {
+                return ret;
+            }
         }
     }
-    panic!("pattern without valid reflection");
+    0
 }
 
 fn test_col(pattern: &[u8], width: usize, col: usize) -> bool {
