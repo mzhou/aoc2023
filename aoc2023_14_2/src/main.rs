@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::io::stdin;
 
@@ -27,8 +28,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         grid.extend(line_bytes.iter());
     }
 
-    for _ in 0..1000000000 {
+    let mut seen = HashMap::<Vec<u8>, usize>::new();
+
+    let mut i = 0;
+    while i != 1000000000 {
+        if let Some(when_seen) = seen.get(&grid) {
+            let cycle_length = i - when_seen;
+            eprintln!("{} seen at {}", i, when_seen);
+            let addable_times = (1000000000 - i - 1) / cycle_length;
+            i += addable_times * cycle_length;
+        }
+
+        seen.insert(grid.clone(), i);
         cycle(&mut grid, width);
+        i += 1;
     }
 
     let mut total_load = 0;
