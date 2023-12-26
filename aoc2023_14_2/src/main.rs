@@ -34,9 +34,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     while i != 1000000000 {
         if let Some(when_seen) = seen.get(&grid) {
             let cycle_length = i - when_seen;
-            eprintln!("{} seen at {}", i, when_seen);
             let addable_times = (1000000000 - i - 1) / cycle_length;
-            i += addable_times * cycle_length;
+            let iters_to_add = addable_times * cycle_length;
+            eprintln!(
+                "{} seen at {} cycle_length {} addable_times {} iters_to_add {}",
+                i, when_seen, cycle_length, addable_times, iters_to_add
+            );
+            i += iters_to_add;
+        }
+
+        if i == 1000000000 {
+            break;
         }
 
         seen.insert(grid.clone(), i);
@@ -131,14 +139,14 @@ fn roll_west(grid: &mut [u8], width: usize) -> bool {
         if grid[i] != b'.' {
             continue;
         }
-        if i % width == 0 {
+        if i % width == width - 1 {
             continue;
         }
-        if grid[i - 1] != b'O' {
+        if grid[i + 1] != b'O' {
             continue;
         }
         grid[i] = b'O';
-        grid[i - 1] = b'.';
+        grid[i + 1] = b'.';
         any_moved = true;
     }
 
