@@ -1,4 +1,4 @@
-use std::cmp::{Ordering, Reverse};
+use std::cmp::{min, Ordering, Reverse};
 use std::collections::{BinaryHeap, HashSet};
 use std::error::Error;
 use std::io::stdin;
@@ -55,7 +55,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         grid.extend(line_bytes.iter().map(|b| b - b'0'));
     }
 
-    let count = shortest_path(
+    let down_count = shortest_path(
+        &grid,
+        width,
+        &State {
+            direction: Direction::Down,
+            direction_count: 0,
+            pos: 0,
+        },
+    );
+
+    let right_count = shortest_path(
         &grid,
         width,
         &State {
@@ -64,6 +74,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             pos: 0,
         },
     );
+
+    let count = min(down_count, right_count);
 
     println!("{}", count);
 
