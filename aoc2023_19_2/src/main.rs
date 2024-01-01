@@ -27,6 +27,7 @@ struct Workflow {
 
 fn main() -> Result<(), Error> {
     let mut workflows = HashMap::<Vec<u8>, Workflow>::new();
+
     let mut boundaries_a = Vec::<u16>::new();
     let mut boundaries_m = Vec::<u16>::new();
     let mut boundaries_s = Vec::<u16>::new();
@@ -90,7 +91,8 @@ fn main() -> Result<(), Error> {
                             b'x' => &mut boundaries_x,
                             _ => panic!("invalid property"),
                         },
-                        rule.threshold,
+                        // make each boundary value be the last number in that range
+                        rule.threshold - if rule.operator == b'<' { 1 } else { 0 },
                     );
                     workflow.rules.push(rule);
                 }
@@ -101,10 +103,80 @@ fn main() -> Result<(), Error> {
         }
     }
 
+    boundaries_a.push(4000);
+    boundaries_m.push(4000);
+    boundaries_s.push(4000);
+    boundaries_x.push(4000);
+
     eprintln!("boundaries_a {} {:?}", boundaries_a.len(), boundaries_a);
     eprintln!("boundaries_m {} {:?}", boundaries_m.len(), boundaries_m);
     eprintln!("boundaries_s {} {:?}", boundaries_s.len(), boundaries_s);
     eprintln!("boundaries_x {} {:?}", boundaries_x.len(), boundaries_x);
+
+    let mut total_combos = 0;
+    let mut run_count = 0;
+
+    for (i_a, a) in boundaries_a.iter().enumerate() {
+        for (i_m, m) in boundaries_m.iter().enumerate() {
+            for (i_s, s) in boundaries_s.iter().enumerate() {
+                for (i_x, x) in boundaries_x.iter().enumerate() {
+                    let last_target = run_workflows(
+                        &workflows,
+                        &Part {
+                            a: *a,
+                            m: *m,
+                            s: *s,
+                            x: *x,
+                        },
+                    );
+                    run_count += 1;
+                    if run_count % 1000000 == 0 {
+                        eprintln!("{} runs", run_count);
+                    }
+                    if last_target != b"A" {
+                        continue;
+                    }
+
+                    let a_before = if i_a == 0 {
+                        0
+                    } else {
+                        boundaries_a[i_a - 1] as u64
+                    };
+                    let m_before = if i_m == 0 {
+                        0
+                    } else {
+                        boundaries_m[i_m - 1] as u64
+                    };
+                    let s_before = if i_s == 0 {
+                        0
+                    } else {
+                        boundaries_s[i_s - 1] as u64
+                    };
+                    let x_before = if i_x == 0 {
+                        0
+                    } else {
+                        boundaries_x[i_x - 1] as u64
+                    };
+
+                    let combos = (*a as u64 - a_before)
+                        * (*m as u64 - m_before)
+                        * (*s as u64 - s_before)
+                        * (*x as u64 - x_before);
+
+                    if false {
+                        eprintln!(
+                            "combos {} a ({}, {}] m ({}, {}] s ({}, {}] x ({}, {}]",
+                            combos, a_before, a, m_before, m, s_before, s, x_before, x
+                        );
+                    }
+
+                    total_combos += combos;
+                }
+            }
+        }
+    }
+
+    println!("{}", total_combos);
 
     Ok(())
 }
