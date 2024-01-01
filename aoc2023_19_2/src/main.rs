@@ -5,10 +5,10 @@ use anyhow::{Context, Error};
 
 #[derive(Default, Debug)]
 struct Part {
-    a: u64,
-    m: u64,
-    s: u64,
-    x: u64,
+    a: u16,
+    m: u16,
+    s: u16,
+    x: u16,
 }
 
 #[derive(Default, Debug)]
@@ -16,7 +16,7 @@ struct Rule {
     operator: u8,
     property: u8,
     target: Vec<u8>,
-    threshold: u64,
+    threshold: u16,
 }
 
 #[derive(Default, Debug)]
@@ -27,10 +27,12 @@ struct Workflow {
 
 fn main() -> Result<(), Error> {
     let mut workflows = HashMap::<Vec<u8>, Workflow>::new();
+    let mut boundaries_a = Vec::<u16>::new();
+    let mut boundaries_m = Vec::<u16>::new();
+    let mut boundaries_s = Vec::<u16>::new();
+    let mut boundaries_x = Vec::<u16>::new();
 
     let mut workflows_over = false;
-
-    let mut total_rating = 0;
 
     for line in stdin().lines() {
         let line = line?;
@@ -75,36 +77,34 @@ fn main() -> Result<(), Error> {
                         rule.property = rule_bytes[0];
                         rule.threshold =
                             String::from_utf8_lossy(&rule_bytes[2..rule_bytes.len() - 1])
-                                .parse::<u64>()?;
+                                .parse()?;
                     }
                 }
                 if rule_complete {
                     eprintln!("rule {:?}", rule);
+                    vec_set_insert(
+                        match rule.property {
+                            b'a' => &mut boundaries_a,
+                            b'm' => &mut boundaries_m,
+                            b's' => &mut boundaries_s,
+                            b'x' => &mut boundaries_x,
+                            _ => panic!("invalid property"),
+                        },
+                        rule.threshold,
+                    );
                     workflow.rules.push(rule);
                 }
             }
 
             workflows.insert(name, workflow);
         } else {
-            let mut sections = line_bytes[1..line_bytes.len() - 1].split(|b| *b == b',');
-            let x = String::from_utf8_lossy(&sections.next().context("missing x")?[2..])
-                .parse::<u64>()?;
-            let m = String::from_utf8_lossy(&sections.next().context("missing m")?[2..])
-                .parse::<u64>()?;
-            let a = String::from_utf8_lossy(&sections.next().context("missing a")?[2..])
-                .parse::<u64>()?;
-            let s = String::from_utf8_lossy(&sections.next().context("missing s")?[2..])
-                .parse::<u64>()?;
-            let part = Part { a, m, s, x };
-            let workflow_result = run_workflows(&workflows, &part);
-            if workflow_result == b"A" {
-                let rating = part.a + part.m + part.s + part.x;
-                total_rating += rating;
-            }
         }
     }
 
-    println!("{}", total_rating);
+    eprintln!("boundaries_a {} {:?}", boundaries_a.len(), boundaries_a);
+    eprintln!("boundaries_m {} {:?}", boundaries_m.len(), boundaries_m);
+    eprintln!("boundaries_s {} {:?}", boundaries_s.len(), boundaries_s);
+    eprintln!("boundaries_x {} {:?}", boundaries_x.len(), boundaries_x);
 
     Ok(())
 }
@@ -122,8 +122,8 @@ fn run_workflows(workflows: &HashMap<Vec<u8>, Workflow>, part: &Part) -> Vec<u8>
                 _ => panic!("invalid property"),
             };
             let op = match rule.operator {
-                b'<' => u64::lt,
-                b'>' => u64::gt,
+                b'<' => u16::lt,
+                b'>' => u16::gt,
                 _ => panic!("invalid operator"),
             };
             if op(&value, &rule.threshold) {
@@ -137,4 +137,13 @@ fn run_workflows(workflows: &HashMap<Vec<u8>, Workflow>, part: &Part) -> Vec<u8>
         }
     }
     current_name.to_vec()
+}
+
+fn vec_set_insert<T>(vec: &mut Vec<T>, value: T)
+where
+    T: Ord,
+{
+    if let Err(pos) = vec.binary_search(&value) {
+        vec.insert(pos, value);
+    }
 }
