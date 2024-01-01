@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io::stdin;
 
 use anyhow::{Context, Error};
+use rayon::prelude::*;
 
 #[derive(Default, Debug)]
 struct Part {
@@ -113,68 +114,67 @@ fn main() -> Result<(), Error> {
     eprintln!("boundaries_s {} {:?}", boundaries_s.len(), boundaries_s);
     eprintln!("boundaries_x {} {:?}", boundaries_x.len(), boundaries_x);
 
-    let mut total_combos = 0;
-    let mut run_count = 0;
-
-    for (i_a, a) in boundaries_a.iter().enumerate() {
-        for (i_m, m) in boundaries_m.iter().enumerate() {
-            for (i_s, s) in boundaries_s.iter().enumerate() {
-                for (i_x, x) in boundaries_x.iter().enumerate() {
-                    let last_target = run_workflows(
-                        &workflows,
-                        &Part {
-                            a: *a,
-                            m: *m,
-                            s: *s,
-                            x: *x,
-                        },
-                    );
-                    run_count += 1;
-                    if run_count % 1000000 == 0 {
-                        eprintln!("{} runs", run_count);
-                    }
-                    if last_target != b"A" {
-                        continue;
-                    }
-
-                    let a_before = if i_a == 0 {
-                        0
-                    } else {
-                        boundaries_a[i_a - 1] as u64
-                    };
-                    let m_before = if i_m == 0 {
-                        0
-                    } else {
-                        boundaries_m[i_m - 1] as u64
-                    };
-                    let s_before = if i_s == 0 {
-                        0
-                    } else {
-                        boundaries_s[i_s - 1] as u64
-                    };
-                    let x_before = if i_x == 0 {
-                        0
-                    } else {
-                        boundaries_x[i_x - 1] as u64
-                    };
-
-                    let combos = (*a as u64 - a_before)
-                        * (*m as u64 - m_before)
-                        * (*s as u64 - s_before)
-                        * (*x as u64 - x_before);
-
-                    if false {
-                        eprintln!(
-                            "combos {} a ({}, {}] m ({}, {}] s ({}, {}] x ({}, {}]",
-                            combos, a_before, a, m_before, m, s_before, s, x_before, x
+    let total_combos: u64 = boundaries_a
+        .par_iter()
+        .enumerate()
+        .map(|(i_a, a)| {
+            let mut a_combos = 0;
+            for (i_m, m) in boundaries_m.iter().enumerate() {
+                for (i_s, s) in boundaries_s.iter().enumerate() {
+                    for (i_x, x) in boundaries_x.iter().enumerate() {
+                        let last_target = run_workflows(
+                            &workflows,
+                            &Part {
+                                a: *a,
+                                m: *m,
+                                s: *s,
+                                x: *x,
+                            },
                         );
-                    }
+                        if last_target != b"A" {
+                            continue;
+                        }
 
-                    total_combos += combos;
+                        let a_before = if i_a == 0 {
+                            0
+                        } else {
+                            boundaries_a[i_a - 1] as u64
+                        };
+                        let m_before = if i_m == 0 {
+                            0
+                        } else {
+                            boundaries_m[i_m - 1] as u64
+                        };
+                        let s_before = if i_s == 0 {
+                            0
+                        } else {
+                            boundaries_s[i_s - 1] as u64
+                        };
+                        let x_before = if i_x == 0 {
+                            0
+                        } else {
+                            boundaries_x[i_x - 1] as u64
+                        };
+
+                        let combos = (*a as u64 - a_before)
+                            * (*m as u64 - m_before)
+                            * (*s as u64 - s_before)
+                            * (*x as u64 - x_before);
+
+                        if false {
+                            eprintln!(
+                                "combos {} a ({}, {}] m ({}, {}] s ({}, {}] x ({}, {}]",
+                                combos, a_before, a, m_before, m, s_before, s, x_before, x
+                            );
+                        }
+
+                        a_combos += combos;
+                    }
                 }
             }
-        }
-    }
+            a_combos
+        })
+        .sum();
 
     println!("{}", total_combos);
 
