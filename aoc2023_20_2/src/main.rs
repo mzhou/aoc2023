@@ -1,8 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::io::stdin;
-use std::iter::empty;
 
-use anyhow::{Context, Error};
+use anyhow::Error;
 
 struct Pulse {
     dst: String,
@@ -81,22 +80,20 @@ fn main() -> Result<(), Error> {
         }
     }
 
-    let mut total_low = 0;
-    let mut total_high = 0;
-
-    for _ in 0..1000 {
-        let (low, high) = push_button(
+    for i in 0.. {
+        let rx_low = push_button(
             &broadcaster_outputs,
             &conjunction_outputs,
             &flipflop_outputs,
             &mut conjunction_inputs,
             &mut flipflop_states,
         );
-        total_low += low;
-        total_high += high;
-    }
 
-    println!("{}", total_low * total_high);
+        if rx_low >= 1 {
+            println!("{}", i + 1);
+            break;
+        }
+    }
 
     Ok(())
 }
@@ -107,9 +104,8 @@ fn push_button(
     flipflop_outputs: &HashMap<String, Vec<String>>,
     conjunction_inputs: &mut HashMap<String, HashMap<String, PulseType>>,
     flipflop_states: &mut HashMap<String, PulseType>,
-) -> (u64, u64) {
-    let mut low = 0;
-    let mut high = 0;
+) -> u64 {
+    let mut rx_low = 0;
     let mut pulses = VecDeque::<Pulse>::new();
 
     pulses.push_back(Pulse {
@@ -119,9 +115,8 @@ fn push_button(
     });
 
     while let Some(pulse) = pulses.pop_front() {
-        match pulse.pulse_type {
-            PulseType::Low => low += 1,
-            PulseType::High => high += 1,
+        if pulse.dst == "rx" && pulse.pulse_type == PulseType::Low {
+            rx_low += 1;
         }
 
         if pulse.dst == "broadcaster" {
@@ -164,5 +159,5 @@ fn push_button(
         }
     }
 
-    (low, high)
+    rx_low
 }
